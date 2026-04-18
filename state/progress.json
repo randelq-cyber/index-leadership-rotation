@@ -1,0 +1,28 @@
+{
+  "project": "index-leadership-rotation",
+  "overall_status": "candidate_rule_family_selected",
+  "last_updated": "2026-04-18",
+  "agents": {
+    "research": "iteration_01_defined",
+    "data": "complete",
+    "analysis": "candidate_rule_v1_comparison_complete",
+    "reflection": "iteration_03_complete",
+    "report": "deferred"
+  },
+  "notes": [
+    "Project scaffold created",
+    "Using stock_trend_rq repo for reusable downloader and price store",
+    "SPY, QQQ, and DIA daily histories downloaded to the external price store",
+    "Iteration 01 curated setup and trigger set defined in knowledge/iteration-01-plan.md",
+    "Iteration 01 implementation smoke-tested successfully and wrote summary outputs",
+    "Formal reflection written to knowledge/iteration-01-reflection.md",
+    "Iteration 02 narrowed branch plan written to knowledge/iteration-02-plan.md",
+    "Iteration 02 rerun completed with summary and control comparison outputs",
+    "Formal reflection written to knowledge/iteration-02-reflection.md",
+    "Iteration 03 narrowed branch plan written to knowledge/iteration-03-plan.md",
+    "Iteration 03 run completed and a candidate rule draft was written",
+    "Candidate rule v0 validated under non-overlap, next-open execution, and cost sensitivity",
+    "Candidate rule v2 written as a 2-rule family recommendation",
+    "Iteration 1 should remain an event-study"
+  ]
+}

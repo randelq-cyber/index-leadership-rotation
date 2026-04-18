@@ -1,0 +1,6 @@
+{
+  "priceRepoRoot": "/home/yqin/repos/stock_trend_rq",
+  "downloadScript": "/home/yqin/repos/stock_trend_rq/src/download_historical_prices.py",
+  "priceDir": "/home/yqin/repos/stock_trend_rq/data/backtest/prices",
+  "notes": "Copy this file to a local untracked config and adjust paths per machine. Raw data stays outside the dedicated project repo."
+}

@@ -1,0 +1,12 @@
+# Local-only configuration
+config/data-sources.local.json
+
+# Raw or bulky local data
+data/
+cache/
+results/raw/
+results/tmp/
+
+# Python noise
+__pycache__/
+*.pyc

@@ -1,0 +1,14 @@
+{
+  "project": "index-leadership-rotation",
+  "status": "data_ready",
+  "current_iteration": 0,
+  "hypothesis_version": "H1",
+  "focus": "setup -> trigger -> next phase",
+  "context_filter": "SPY",
+  "comparison_pair": ["QQQ", "DIA"],
+  "universe": ["SPY", "QQQ", "DIA"],
+  "bars": "daily",
+  "high_lookbacks": [60, 128, 252],
+  "holding_windows": [2, 3, 4, 5],
+  "next_task": "test simple position-management assumptions on candidate-rule-v2 and decide how the 2-rule family would be traded together"
+}
