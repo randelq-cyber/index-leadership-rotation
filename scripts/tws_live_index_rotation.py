@@ -171,10 +171,28 @@ def prepare_market_data(histories: Dict[str, pd.DataFrame]) -> pd.DataFrame:
 
 
 def setup_s1(prices: pd.DataFrame, idx: int, leader: str, laggard: str) -> bool:
+    """Return True when the strict same-day non-confirmation setup is active.
+
+    Rule definition for the 60-day production variant:
+    1. ES, our SPY proxy, closes at a fresh 60-day high.
+    2. The leader leg, NQ or YM, also closes at a fresh 60-day high.
+    3. The laggard leg is not at a fresh 60-day high and is at least 1% below it.
+    4. Over the prior 10 trading days, the leader outperformed the laggard by at least 2%.
+
+    This is the "divergence exists" state. It does not trade yet. The trade waits for
+    the T1 trigger, where the laggard starts to turn relative to the leader.
+    """
+    # Context filter, ES stands in for SPY and must confirm the broader market strength.
     es_at_high = bool(prices.iloc[idx][f"ES_at_high_{LOOKBACK_DAYS}"])
+
+    # One of NQ or YM is designated the current leader, and it must also be at a fresh high.
     leader_at_high = bool(prices.iloc[idx][f"{leader}_at_high_{LOOKBACK_DAYS}"])
+
+    # The laggard must still be below its own high, otherwise there is no non-confirmation.
     laggard_at_high = bool(prices.iloc[idx][f"{laggard}_at_high_{LOOKBACK_DAYS}"])
     laggard_gap = prices.iloc[idx][f"{laggard}_gap_{LOOKBACK_DAYS}"]
+
+    # Relative-performance filter over the last 10 daily bars.
     leader_ret10 = prices.iloc[idx][f"{leader}_ret_10"]
     laggard_ret10 = prices.iloc[idx][f"{laggard}_ret_10"]
 
@@ -191,6 +209,17 @@ def setup_s1(prices: pd.DataFrame, idx: int, leader: str, laggard: str) -> bool:
 
 
 def find_t1_trigger(prices: pd.DataFrame, setup_idx: int, leader: str, laggard: str) -> Optional[int]:
+    """Find the first T1 trigger after a valid setup.
+
+    T1 is the 3-day relative-strength turn:
+    - compute 3-day return of laggard minus 3-day return of leader
+    - yesterday that spread must be <= 0
+    - today that spread must be > 0
+
+    In plain English, we wait for the laggard to start outperforming the leader on a
+    short rolling window after the divergence setup has already formed.
+    """
+    # Trigger must happen after the setup day, inside the 10-trading-day search window.
     start_idx = setup_idx + 1
     end_idx = min(len(prices) - 1, setup_idx + TRIGGER_SEARCH_DAYS)
     if start_idx > end_idx:
@@ -205,19 +234,31 @@ def find_t1_trigger(prices: pd.DataFrame, setup_idx: int, leader: str, laggard: 
         if pd.isna([lag_ret, lead_ret]).any():
             continue
 
+        # Positive means the laggard has now outperformed the leader on a rolling 3-day basis.
         curr_rel = lag_ret - lead_ret
         prev_rel = None if idx == 0 or pd.isna([prev_lag_ret, prev_lead_ret]).any() else prev_lag_ret - prev_lead_ret
+
+        # This is the actual crossover event: non-positive yesterday, positive today.
         if prev_rel is not None and curr_rel > 0 and prev_rel <= 0:
             return idx
     return None
 
 
 def find_live_signals(prices: pd.DataFrame) -> pd.DataFrame:
+    """Build same-day live signals from all eligible setups.
+
+    Multiple historical setup dates can sometimes map to the same trigger date. We sort by
+    setup date and keep the earliest setup for each direction/trigger pair so the live layer
+    sees one clean signal per direction.
+    """
     rows: List[dict] = []
     for leader, laggard in PAIR_DIRECTIONS:
         for setup_idx in range(len(prices)):
+            # Skip rows before the 60-day lookback is fully available.
             if pd.isna(prices.iloc[setup_idx][f"ES_high_{LOOKBACK_DAYS}"]):
                 continue
+
+            # First require the setup state, then search forward for the T1 trigger.
             if not setup_s1(prices, setup_idx, leader, laggard):
                 continue
             trigger_idx = find_t1_trigger(prices, setup_idx, leader, laggard)
@@ -232,6 +273,7 @@ def find_live_signals(prices: pd.DataFrame) -> pd.DataFrame:
                     "setup_date": prices.index[setup_idx],
                     "trigger_idx": trigger_idx,
                     "trigger_date": prices.index[trigger_idx],
+                    # We enter immediately after the daily signal check on the trigger day.
                     "entry_date": prices.index[trigger_idx],
                 }
             )
@@ -243,6 +285,8 @@ def find_live_signals(prices: pd.DataFrame) -> pd.DataFrame:
     signal_df = signal_df.sort_values(["direction", "trigger_idx", "setup_idx"]).drop_duplicates(
         subset=["direction", "leader", "laggard", "trigger_idx"], keep="first"
     )
+
+    # Live trading only cares about signals whose trigger is today, the latest bar available.
     live_idx = len(prices) - 1
     return signal_df[signal_df["trigger_idx"] == live_idx].reset_index(drop=True)
 
